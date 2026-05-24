@@ -1,4 +1,4 @@
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 
 export const messageService = {
     async createMessage(data) {

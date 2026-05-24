@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import Sidebar from './components/Sidebar'
 import ChatWorkspace from './views/ChatWorkspace'
@@ -7,40 +7,108 @@ import Settings from './views/Settings'
 import LogDrawer from './components/LogDrawer'
 import ModelSelector from './components/ModelSelector'
 import { mockConversations, mockMessages } from './utils/contant'
+import api from './utils/api'
 
 function App() {
-  const[currentView, setCurrentView] = useState('chat');
-  const [conversations, setConversations] = useState(mockConversations);
+  const [currentView, setCurrentView] = useState('chat');
+  const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
+  const [activeMessages, setActiveMessages] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState(null);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
-  // Modal Configuration Hooks
   const [provider, setProvider] = useState('openai');
   const [model, setModel] = useState('gpt-4o');
 
-  const handleCreateSession = () => {
-    const nextId = String(conversations.length + 1);
-    const newSession = {
-      id: nextId,
-      title: `Telemetry Thread Trace #${nextId}`,
-      provider,
-      model,
-      status: 'active',
-      createdAt: 'Just now'
-    };
-    setConversations([newSession, ...conversations]);
-    setActiveId(nextId);
-    setIsModalOpen(false);
-    setCurrentView('chat');
+  // Fetch Sidebar Sessions on Mount
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  // Fetch Message History on Active Session Change
+  useEffect(() => {
+    if (!activeId) {
+      setActiveMessages([]);
+      return;
+    }
+    fetchMessages(activeId);
+  }, [activeId]);
+
+  const fetchSessions = async () => {
+    try {
+      const response = await api.get('/sessions');
+      setConversations(response.data);
+    } catch (error) {
+      console.error('Session Fetch Fault:', error.response?.data || error.message);
+    }
   };
 
-  const handleToggleStatus = () => {
-    setConversations(conversations.map(c =>
-      c.id === activeId
-        ? { ...c, status: c.status === 'active' ? 'cancelled' : 'active' }
-        : c
-    ));
+  //Fetch Message History
+  const fetchMessages = async (sessionId) => {
+    setIsLoadingMessages(true);
+    try {
+      const response = await api.get(`/sessions/${sessionId}/messages`);
+      setActiveMessages(response.data);
+    } catch (error) {
+      console.error('Message History Sync Fault:', error.response?.data || error.message);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
+  // Handle Session Creation
+  const handleCreateSession = async () => {
+    try {
+      const response = await api.post('/sessions', {
+        provider,
+        model,
+        title: `Telemetry Thread Trace ${conversations.length + 1}`,
+        isStreaming: true
+      });
+
+      const newSession = response.data;
+      setConversations([newSession, ...conversations]);
+      setActiveId(newSession.id);
+      setIsModalOpen(false);
+      setCurrentView('chat');
+    } catch (error) {
+      console.log(error,':::')
+      const errorMsg = error.response?.data?.error?.message || 'Failed to provision session.';
+      alert(`Initialization Error: ${errorMsg}`);
+    }
+  };
+
+  //Handle Session Status Toggle (Active/Cancelled)
+  const handleToggleStatus = async () => {
+    const targetSession = conversations.find(c => c.id === activeId);
+    if (!targetSession) return;
+
+    const updatedStatus = targetSession.status === 'active' ? 'cancelled' : 'active';
+
+    try {
+      const response = await api.patch(`/sessions/${activeId}`, {
+        status: updatedStatus
+      });
+
+      setConversations(conversations.map(c => c.id === activeId ? response.data : c));
+    } catch (error) {
+      console.error('Status Toggle Fault:', error.response?.data || error.message);
+    }
+  };
+
+  // Handle Session Deletion
+  const handleDeleteSession = async (sessionId) => {
+    try {
+      await api.delete(`/sessions/${sessionId}`);
+      setConversations(conversations.filter(c => c.id !== sessionId));
+      if (activeId === sessionId) {
+        setActiveId(null);
+        setActiveMessages([]);
+      }
+    } catch (error) {
+      console.error('Deletion Pipeline Fault:', error.response?.data || error.message);
+    }
   };
 
   return (
@@ -52,13 +120,15 @@ function App() {
         onViewChange={setCurrentView}
         onSelectSession={(id) => { setActiveId(id); setCurrentView('chat'); }}
         onOpenNewChat={() => setIsModalOpen(true)}
+        onDeleteSession={handleDeleteSession}
       />
 
       <main className="flex-1 h-full relative overflow-hidden bg-slate-950">
         {currentView === 'chat' && (
           <ChatWorkspace
             activeSession={conversations.find(c => c.id === activeId)}
-            messages={activeId ? mockMessages[activeId] || [] : []}
+            messages={activeMessages}
+            isLoading={isLoadingMessages}
             onToggleStatus={handleToggleStatus}
             onOpenLog={setSelectedLogId}
           />

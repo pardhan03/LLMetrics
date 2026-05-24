@@ -2,7 +2,15 @@ import React from 'react';
 import { Plus, BarChart3, Settings, ShieldCheck } from 'lucide-react';
 import ConversationItem from './ConversationItem';
 
-export default function Sidebar({ conversations, activeId, currentView, onViewChange, onSelectSession, onOpenNewChat }) {
+export default function Sidebar({
+  conversations,
+  activeId,
+  currentView,
+  onViewChange,
+  onSelectSession,
+  onOpenNewChat,
+  onDeleteSession
+}) {
   return (
     <aside className="w-[280px] bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 h-full shrink-0">
       <div className="flex flex-col gap-4 overflow-hidden h-full">
@@ -27,6 +35,7 @@ export default function Sidebar({ conversations, activeId, currentView, onViewCh
               conversation={session}
               isActive={activeId === session.id && currentView === 'chat'}
               onClick={() => onSelectSession(session.id)}
+              onDelete={onDeleteSession}
             />
           ))}
         </div>

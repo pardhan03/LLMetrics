@@ -9,17 +9,23 @@ import { errorHandler } from './src/middleware/errorHandler.js';
 
 import { sessionsRouter } from './src/routes/sessions.js';
 
+import "./src/workers/logWorker.js";
+
+import "./src/workers/piiWorker.js";
+
+const corsOptions = {
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  credentials: true,
+};
+
 const app = express();
+
+app.use(cors(corsOptions));
 
 app.use(rateLimiter);
 app.use(errorHandler);
 app.use(helmet());
-
-app.use(
-  cors({
-    origin: env.CORS_ORIGIN,
-  })
-);
 
 app.use(express.json({ limit: '1mb' }));
 

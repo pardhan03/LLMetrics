@@ -6,3 +6,16 @@ export class AppError extends Error {
         this.code = code;
     }
 }
+
+export class ProviderError extends AppError {
+  constructor(
+    message,
+    status = 500,
+    code = 'PROVIDER_ERROR',
+    isRetryable = false
+  ) {
+    super(message, status, code);
+
+    this.isRetryable = isRetryable;
+  }
+}
