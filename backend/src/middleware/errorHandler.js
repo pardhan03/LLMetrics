@@ -1,14 +1,29 @@
-import { logger } from '../utils/logger.js';
+import { ZodError } from 'zod';
 
-export function errorHandler(err, req, res, next) {
-  logger.error(err);
+export function errorHandler(
+    err,
+    req,
+    res,
+    next
+) {
+    console.error(err);
 
-  const status = err.status || 500;
+    if (err instanceof ZodError) {
+        return res.status(400).json({
+            error: {
+                code: 'VALIDATION_ERROR',
+                message: err.errors,
+            },
+        });
+    }
 
-  res.status(status).json({
-    error: {
-      code: err.code || 'INTERNAL_SERVER_ERROR',
-      message: err.message || 'Something went wrong',
-    },
-  });
+    res.status(err.status || 500).json({
+        error: {
+            code:
+                err.code || 'INTERNAL_SERVER_ERROR',
+
+            message:
+                err.message || 'Something went wrong',
+        },
+    });
 }
