@@ -1,0 +1,36 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+
+import { env } from './src/config/env.js';
+
+import { rateLimiter } from './src/middleware/rateLimiter.js';
+import { errorHandler } from './src/middleware/errorHandler.js';
+
+import { sessionsRouter } from './src/routes/sessions.js';
+
+const app = express();
+
+app.use(rateLimiter);
+app.use(errorHandler);
+app.use(helmet());
+
+app.use(
+  cors({
+    origin: env.CORS_ORIGIN,
+  })
+);
+
+app.use(express.json({ limit: '1mb' }));
+
+app.use('/api/sessions', sessionsRouter);
+
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+  });
+});
+
+app.listen(env.PORT, () => {
+  console.log(`Server running on port ${env.PORT}`);
+});
