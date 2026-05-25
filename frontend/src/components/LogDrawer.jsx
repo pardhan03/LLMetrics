@@ -1,52 +1,95 @@
 import React from 'react';
-import { X } from 'lucide-react';
-import { mockLogDetails } from '../utils/contant';
+import { X, Loader2, Cpu, Clock, Layers } from 'lucide-react';
+import { usePipelineQueries } from '../hooks/usePipelineQueries';
 
 export default function LogDrawer({ logId, onClose }) {
+  const { useGetLogDetail } = usePipelineQueries();
+  const { data: log, isLoading } = useGetLogDetail(logId);
+
   if (!logId) return null;
-  const log = mockLogDetails[logId];
 
   return (
-    <div className="absolute top-0 right-0 w-[450px] h-full bg-slate-900 border-l border-slate-800 shadow-2xl z-50 flex flex-col p-6 animate-in slide-in-from-right duration-200">
-      <div className="flex justify-between items-center border-b border-slate-800 pb-4 mb-4">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-emerald-400" />
-          <h3 className="font-bold text-slate-200">Inference Pipeline Metadata</h3>
+    <div className="fixed inset-y-0 right-0 w-[450px] bg-slate-900 border-l border-slate-800 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
+      {/* Drawer Header Layout */}
+      <div className="h-14 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-950/40">
+        <div>
+          <h3 className="text-sm font-bold text-slate-200">Transaction Trace Insight</h3>
+          <p className="text-[10px] font-mono text-slate-500">{logId}</p>
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200">
-          <X className="h-5 w-5" />
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-100 p-1 rounded-lg hover:bg-slate-800 transition">
+          <X className="h-4 w-4" />
         </button>
       </div>
 
-      {log ? (
-        <div className="space-y-6 text-sm overflow-y-auto flex-1 pr-1">
-          <div>
-            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Scope Metadata</h4>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 font-mono text-xs">
-              <div className="flex justify-between"><span className="text-slate-500">Log ID:</span><span className="text-slate-300">{log.id}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Provider:</span><span className="text-emerald-400 font-bold uppercase">{log.provider}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Model:</span><span className="text-slate-300">{log.model}</span></div>
-            </div>
+      {/* Content Rendering Canvas */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
+        {isLoading ? (
+          <div className="h-32 flex items-center justify-center">
+            <Loader2 className="h-5 w-5 text-emerald-400 animate-spin" />
           </div>
-          <div>
-            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">SDK Metrics Output</h4>
-            <div className="grid grid-cols-2 gap-2 font-mono">
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800"><div className="text-xs text-slate-500">Total Latency</div><div className="text-lg font-bold text-slate-200 mt-1">{log.latencyMs}ms</div></div>
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800"><div className="text-xs text-slate-500">TTFT Stream</div><div className="text-lg font-bold text-slate-200 mt-1">{log.ttftMs}ms</div></div>
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800"><div className="text-xs text-slate-500">Prompt Tokens</div><div className="text-base font-bold text-slate-300 mt-1">{log.promptTokens}</div></div>
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800"><div className="text-xs text-slate-500">Completion Tokens</div><div className="text-base font-bold text-slate-300 mt-1">{log.completionTokens}</div></div>
+        ) : !log ? (
+          <div className="text-center text-slate-500">Failed to locate targeted transaction log detail record.</div>
+        ) : (
+          <>
+            {/* Core Metrics Summary Banner */}
+            <div className="grid grid-cols-3 gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800 text-center font-mono">
+              <div>
+                <div className="text-slate-500 text-[9px] uppercase tracking-wider mb-0.5">Latency</div>
+                <div className="text-slate-200 font-bold">{log.latency_ms}ms</div>
+              </div>
+              <div>
+                <div className="text-slate-500 text-[9px] uppercase tracking-wider mb-0.5">TTFT</div>
+                <div className="text-slate-200 font-bold">{log.ttft_ms || 'N/A'}ms</div>
+              </div>
+              <div>
+                <div className="text-slate-500 text-[9px] uppercase tracking-wider mb-0.5">Tokens</div>
+                <div className="text-slate-200 font-bold">{log.total_tokens || 0}</div>
+              </div>
             </div>
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Redacted Prompt Preview</h4>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs text-slate-300 whitespace-pre-wrap">
-              {log.inputPreview}
+
+            {/* Model Router Details Metadata Block */}
+            <div className="space-y-2 bg-slate-950/40 border border-slate-800/60 rounded-xl p-3">
+              <div className="flex justify-between items-center border-b border-slate-800/40 pb-1.5">
+                <span className="text-slate-500">Model Provider</span>
+                <span className="font-mono text-slate-200 uppercase font-semibold">{log.provider}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-800/40 pb-1.5">
+                <span className="text-slate-500">Target Model Type</span>
+                <span className="font-mono text-slate-200">{log.model}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Status Vector</span>
+                <span className={`font-semibold ${log.status === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {log.status}
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
-      ) : (
-        <p className="text-xs text-slate-500">No log data mapped for this key identifier.</p>
-      )}
+
+            {/* Text Ingestion Scraped Cache Inputs (PII Shield Screen Validated) */}
+            <div className="space-y-1.5">
+              <label className="text-slate-400 font-medium text-[11px] uppercase tracking-wider">PII Filtered Prompt Preview</label>
+              <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl font-mono text-slate-300 leading-relaxed max-h-36 overflow-y-auto break-all">
+                {log.input_preview || <span className="text-slate-600 italic">No input data trace cached.</span>}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-slate-400 font-medium text-[11px] uppercase tracking-wider">PII Filtered Output Preview</label>
+              <div className="bg-slate-950 border border-slate-800 p-3 rounded-xl font-mono text-slate-300 leading-relaxed max-h-36 overflow-y-auto break-all">
+                {log.output_preview || <span className="text-slate-600 italic">No output completion data trace cached.</span>}
+              </div>
+            </div>
+
+            {/* Exception Metadata Sub-section Banner block */}
+            {log.status === 'error' && (
+              <div className="p-3 bg-rose-950/20 border border-rose-900/30 rounded-xl space-y-1">
+                <div className="font-bold text-rose-400 uppercase tracking-wide text-[10px]">Exception Code: {log.error_code || 'UNSPECIFIED'}</div>
+                <div className="text-rose-300 font-mono text-[11px] leading-relaxed">{log.error_message || 'An anonymous engine exception context was registered.'}</div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

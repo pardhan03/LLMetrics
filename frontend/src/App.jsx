@@ -1,114 +1,76 @@
-import { useEffect, useState } from 'react'
-import './App.css'
-import Sidebar from './components/Sidebar'
-import ChatWorkspace from './views/ChatWorkspace'
-import Dashboard from './views/Dashboard'
-import Settings from './views/Settings'
-import LogDrawer from './components/LogDrawer'
-import ModelSelector from './components/ModelSelector'
-import { mockConversations, mockMessages } from './utils/contant'
-import api from './utils/api'
+import React, { useState } from 'react';
+import './App.css';
+import Sidebar from './components/Sidebar';
+import ChatWorkspace from './views/ChatWorkspace';
+import Dashboard from './views/Dashboard';
+import Settings from './views/Settings';
+import LogDrawer from './components/LogDrawer';
+import ModelSelector from './components/ModelSelector';
+import { usePipelineQueries } from './hooks/usePipelineQueries';
 
 function App() {
   const [currentView, setCurrentView] = useState('chat');
-  const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
-  const [activeMessages, setActiveMessages] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState(null);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   const [provider, setProvider] = useState('openai');
   const [model, setModel] = useState('gpt-4o');
 
-  // Fetch Sidebar Sessions on Mount
-  useEffect(() => {
-    fetchSessions();
-  }, []);
+  // Instantiate TanStack React Query Hooks Block
+  const { useGetSessions, useCreateSession, useUpdateSession, useDeleteSession } = usePipelineQueries();
 
-  // Fetch Message History on Active Session Change
-  useEffect(() => {
-    if (!activeId) {
-      setActiveMessages([]);
-      return;
-    }
-    fetchMessages(activeId);
-  }, [activeId]);
+  const { data: conversations = [], isLoading: isLoadingSessions } = useGetSessions();
+  const createSessionMutation = useCreateSession();
+  const updateSessionMutation = useUpdateSession();
+  const deleteSessionMutation = useDeleteSession();
 
-  const fetchSessions = async () => {
-    try {
-      const response = await api.get('/sessions');
-      setConversations(response.data);
-    } catch (error) {
-      console.error('Session Fetch Fault:', error.response?.data || error.message);
-    }
-  };
-
-  //Fetch Message History
-  const fetchMessages = async (sessionId) => {
-    setIsLoadingMessages(true);
-    try {
-      const response = await api.get(`/sessions/${sessionId}/messages`);
-      setActiveMessages(response.data);
-    } catch (error) {
-      console.error('Message History Sync Fault:', error.response?.data || error.message);
-    } finally {
-      setIsLoadingMessages(false);
-    }
-  };
+  // Find the selected session object directly from our clean server cache array
+  const activeSession = conversations.find((c) => c.id === activeId);
 
   // Handle Session Creation
   const handleCreateSession = async () => {
-    try {
-      const response = await api.post('/sessions', {
+    createSessionMutation.mutate(
+      {
         provider,
         model,
         title: `Telemetry Thread Trace ${conversations.length + 1}`,
-        isStreaming: true
-      });
-
-      const newSession = response.data;
-      setConversations([newSession, ...conversations]);
-      setActiveId(newSession.id);
-      setIsModalOpen(false);
-      setCurrentView('chat');
-    } catch (error) {
-      console.log(error,':::')
-      const errorMsg = error.response?.data?.error?.message || 'Failed to provision session.';
-      alert(`Initialization Error: ${errorMsg}`);
-    }
+        isStreaming: true,
+      },
+      {
+        onSuccess: (newSession) => {
+          setActiveId(newSession.id);
+          setIsModalOpen(false);
+          setCurrentView('chat');
+        },
+        onError: (error) => {
+          const errorMsg = error.response?.data?.error?.message || 'Failed to provision session.';
+          alert(`Initialization Error: ${errorMsg}`);
+        },
+      }
+    );
   };
 
-  //Handle Session Status Toggle (Active/Cancelled)
-  const handleToggleStatus = async () => {
-    const targetSession = conversations.find(c => c.id === activeId);
-    if (!targetSession) return;
+  // Handle Session Status Toggle (Active/Cancelled)
+  const handleToggleStatus = () => {
+    if (!activeSession) return;
+    const updatedStatus = activeSession.status === 'active' ? 'cancelled' : 'active';
 
-    const updatedStatus = targetSession.status === 'active' ? 'cancelled' : 'active';
-
-    try {
-      const response = await api.patch(`/sessions/${activeId}`, {
-        status: updatedStatus
-      });
-
-      setConversations(conversations.map(c => c.id === activeId ? response.data : c));
-    } catch (error) {
-      console.error('Status Toggle Fault:', error.response?.data || error.message);
-    }
+    updateSessionMutation.mutate({
+      id: activeId,
+      updates: { status: updatedStatus },
+    });
   };
 
   // Handle Session Deletion
-  const handleDeleteSession = async (sessionId) => {
-    try {
-      await api.delete(`/sessions/${sessionId}`);
-      setConversations(conversations.filter(c => c.id !== sessionId));
-      if (activeId === sessionId) {
-        setActiveId(null);
-        setActiveMessages([]);
-      }
-    } catch (error) {
-      console.error('Deletion Pipeline Fault:', error.response?.data || error.message);
-    }
+  const handleDeleteSession = (sessionId) => {
+    deleteSessionMutation.mutate(sessionId, {
+      onSuccess: () => {
+        if (activeId === sessionId) {
+          setActiveId(null);
+        }
+      },
+    });
   };
 
   return (
@@ -118,7 +80,10 @@ function App() {
         activeId={activeId}
         currentView={currentView}
         onViewChange={setCurrentView}
-        onSelectSession={(id) => { setActiveId(id); setCurrentView('chat'); }}
+        onSelectSession={(id) => {
+          setActiveId(id);
+          setCurrentView('chat');
+        }}
         onOpenNewChat={() => setIsModalOpen(true)}
         onDeleteSession={handleDeleteSession}
       />
@@ -126,9 +91,7 @@ function App() {
       <main className="flex-1 h-full relative overflow-hidden bg-slate-950">
         {currentView === 'chat' && (
           <ChatWorkspace
-            activeSession={conversations.find(c => c.id === activeId)}
-            messages={activeMessages}
-            isLoading={isLoadingMessages}
+            activeSession={activeSession}
             onToggleStatus={handleToggleStatus}
             onOpenLog={setSelectedLogId}
           />
@@ -149,11 +112,18 @@ function App() {
                 onModelChange={setModel}
               />
               <div className="flex gap-2 justify-end pt-5">
-                <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-slate-200 transition">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-slate-200 transition"
+                >
                   Cancel
                 </button>
-                <button onClick={handleCreateSession} className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition">
-                  Initialize Pipe
+                <button
+                  onClick={handleCreateSession}
+                  disabled={createSessionMutation.isPending}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition disabled:opacity-40"
+                >
+                  {createSessionMutation.isPending ? 'Provisioning...' : 'Initialize Pipe'}
                 </button>
               </div>
             </div>
@@ -161,7 +131,7 @@ function App() {
         )}
       </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
