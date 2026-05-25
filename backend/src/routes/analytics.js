@@ -36,25 +36,15 @@ analyticsRouter.get(
                     "total_tokens as total"
                 );
 
+            const requestCount = Number(totalRequests[0].count);
+            const errorCount = Number(errors[0].count);
+
             return res.json({
-                totalRequests:
-                    Number(
-                        totalRequests[0].count
-                    ),
-
-                errorRate:
-                    Number(errors[0].count) /
-                    Number(
-                        totalRequests[0].count
-                    ),
-
-                avgLatency:
-                    Number(avgLatency[0].avg),
-
-                totalTokens:
-                    Number(
-                        totalTokens[0].total
-                    ),
+                total_requests: requestCount,
+                error_count: errorCount,
+                error_rate: requestCount > 0 ? errorCount / requestCount : 0,
+                avg_latency_ms: Number(avgLatency[0].avg) || 0,
+                total_tokens: Number(totalTokens[0].total) || 0,
             });
         } catch (error) {
             next(error);
@@ -126,7 +116,7 @@ analyticsRouter.get(
                 )
                 .limit(10);
 
-            return res.json(errors);
+            return res.json({ recent_errors: errors });
         } catch (error) {
             next(error);
         }

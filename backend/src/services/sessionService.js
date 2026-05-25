@@ -14,14 +14,6 @@ export const sessionService = {
         return session;
     },
 
-    async listSessions() {
-        const sessions = await db('sessions')
-            .select('*')
-            .orderBy('updated_at', 'desc');
-
-        return sessions;
-    },
-
     async getSessionById(id) {
         return db('sessions')
             .where({ id })

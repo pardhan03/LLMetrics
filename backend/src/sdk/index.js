@@ -64,7 +64,7 @@ export class InferenceLogger {
 
             await queue.add(log);
 
-            return result;
+            return { ...result, logId: log.id };
         } catch (error) {
             const latencyMs =
                 Date.now() - start;

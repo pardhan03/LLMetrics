@@ -1,10 +1,18 @@
 import React from 'react';
 
-export default function ErrorTable() {
-  const dummyErrors = [
-    { time: '12:02 PM', session: '1', provider: 'openai', code: '429', msg: 'Rate limit reached' },
-    { time: '11:15 AM', session: '2', provider: 'google', code: '503', msg: 'Service Unavailable' }
-  ];
+function formatTimestamp(value) {
+  if (!value) return '—';
+  return new Date(value).toLocaleString();
+}
+
+export default function ErrorTable({ errors = [] }) {
+  if (errors.length === 0) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 text-center text-xs text-slate-500">
+        No error logs recorded.
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
@@ -19,13 +27,13 @@ export default function ErrorTable() {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800 font-mono text-xs text-slate-300">
-          {dummyErrors.map((err, i) => (
-            <tr key={i} className="hover:bg-slate-800/30">
-              <td className="p-3">{err.time}</td>
-              <td className="p-3 text-emerald-400">sess_{err.session}</td>
+          {errors.map((err) => (
+            <tr key={err.id} className="hover:bg-slate-800/30">
+              <td className="p-3">{formatTimestamp(err.created_at)}</td>
+              <td className="p-3 text-emerald-400 truncate max-w-[120px]">{err.session_id?.slice(0, 8)}…</td>
               <td className="p-3 uppercase">{err.provider}</td>
-              <td className="p-3 text-rose-400">{err.code}</td>
-              <td className="p-3 truncate max-w-[200px] text-slate-400">{err.msg}</td>
+              <td className="p-3 text-rose-400">{err.error_code || 'UNKNOWN'}</td>
+              <td className="p-3 truncate max-w-[200px] text-slate-400">{err.error_message || '—'}</td>
             </tr>
           ))}
         </tbody>

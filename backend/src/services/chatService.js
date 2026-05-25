@@ -28,6 +28,10 @@ export class ChatService {
       content,
     });
 
+    await db("sessions")
+      .where({ id: sessionId })
+      .update({ updated_at: db.fn.now() });
+
     const messages = await db("messages")
       .where({ session_id: sessionId })
       .orderBy("created_at", "asc");
@@ -43,6 +47,7 @@ export class ChatService {
       provider,
       model: session.model,
       messages: formatted,
+      session,
     };
   }
 }

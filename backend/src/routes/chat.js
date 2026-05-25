@@ -112,14 +112,7 @@ chatRouter.post(
                         model,
 
                         (chunk) => {
-
                             if (chunk.done) {
-                                connection.write(
-                                    `data: ${JSON.stringify({
-                                        type: "done",
-                                    })}\n\n`
-                                );
-
                                 return;
                             }
 
@@ -127,7 +120,6 @@ chatRouter.post(
 
                             assistantContent +=
                                 chunk.delta;
-
 
                             connection.write(
                                 `data: ${JSON.stringify({
@@ -165,6 +157,9 @@ chatRouter.post(
                             messageId:
                                 assistantMessage.id,
 
+                            logId:
+                                result.logId,
+
                             latencyMs:
                                 result.latencyMs,
 
@@ -176,6 +171,12 @@ chatRouter.post(
 
                             completionTokens:
                                 result.completionTokens,
+                        })}\n\n`
+                    );
+
+                    connection.write(
+                        `data: ${JSON.stringify({
+                            type: "done",
                         })}\n\n`
                     );
                 })
@@ -191,6 +192,12 @@ chatRouter.post(
 
                             message:
                                 error.message,
+                        })}\n\n`
+                    );
+
+                    connection.write(
+                        `data: ${JSON.stringify({
+                            type: "done",
                         })}\n\n`
                     );
                 });
