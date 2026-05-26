@@ -15,6 +15,7 @@ export const chatRouter = express.Router();
 
 chatRouter.get("/:id/stream", async (req, res) => {
     const sessionId = req.params.id;
+    console.log(sessionId, ':::::::::::::::::::::::::')
 
     // SSE HEADERS
     res.setHeader(
@@ -33,6 +34,11 @@ chatRouter.get("/:id/stream", async (req, res) => {
     );
 
     res.flushHeaders();
+
+    // Initial event so proxies (e.g. Vite dev) flush the response to the client
+    res.write(
+        `data: ${JSON.stringify({ type: "connected" })}\n\n`
+    );
 
     // STORE SSE CONNECTION
     streamConnections.set(sessionId, res);

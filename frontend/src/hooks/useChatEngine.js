@@ -80,59 +80,97 @@ export function useChatEngine(sessionId) {
       const sseUrl = getStreamUrl(sessionId);
       eventSourceRef.current = new EventSource(sseUrl);
 
-      sseReadyRef.current = waitForSseConnection(eventSourceRef.current);
+      const es = eventSourceRef.current;
 
-      eventSourceRef.current.onmessage = (event) => {
-        const payload = JSON.parse(event.data);
+      sseReadyRef.current = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('SSE connection timed out'));
+        }, 5000);
 
-        if (payload.type === 'delta') {
-          queryClient.setQueryData(queryKey, (oldCache) =>
-            oldCache?.map((msg) =>
-              msg.id === assistantMessageId
-                ? { ...msg, content: msg.content + payload.delta }
-                : msg
-            )
-          );
-        }
+        es.onopen = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
 
-        if (payload.type === 'metrics') {
-          queryClient.setQueryData(queryKey, (oldCache) =>
-            oldCache?.map((msg) =>
-              msg.id === assistantMessageId
-                ? {
+        es.onerror = (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        };
+
+        es.onmessage = (event) => {
+          const payload = JSON.parse(event.data);
+
+          if (payload.type === 'connected') {
+            return;
+          }
+
+          if (payload.type === 'delta') {
+            queryClient.setQueryData(queryKey, (oldCache) =>
+              oldCache?.map((msg) =>
+                msg.id === assistantMessageId
+                  ? {
+                    ...msg,
+                    content: msg.content + payload.delta,
+                  }
+                  : msg
+              )
+            );
+          }
+
+          if (payload.type === 'metrics') {
+            queryClient.setQueryData(queryKey, (oldCache) =>
+              oldCache?.map((msg) =>
+                msg.id === assistantMessageId
+                  ? {
                     ...msg,
                     id: payload.messageId || msg.id,
                     log_id: payload.logId,
                     latency_ms: payload.latencyMs,
                     total_tokens: payload.totalTokens,
                   }
-                : msg
-            )
-          );
-        }
+                  : msg
+              )
+            );
+          }
 
-        if (payload.type === 'done') {
-          safelyStopStream();
-          queryClient.invalidateQueries({ queryKey });
-          queryClient.invalidateQueries({ queryKey: ['sessions'] });
-        }
+          if (payload.type === 'done') {
+            safelyStopStream();
 
-        if (payload.type === 'error') {
-          safelyStopStream();
-          queryClient.setQueryData(queryKey, (oldCache) =>
-            oldCache?.map((msg) =>
-              msg.id === assistantMessageId
-                ? { ...msg, content: msg.content + `\n[Stream Interrupted: ${payload.message}]` }
-                : msg
-            )
-          );
-        }
+            queryClient.invalidateQueries({
+              queryKey,
+            });
 
-        if (payload.type === 'cancelled') {
-          safelyStopStream();
-          queryClient.invalidateQueries({ queryKey });
-        }
-      };
+            queryClient.invalidateQueries({
+              queryKey: ['sessions'],
+            });
+          }
+
+          if (payload.type === 'error') {
+            safelyStopStream();
+
+            queryClient.setQueryData(queryKey, (oldCache) =>
+              oldCache?.map((msg) =>
+                msg.id === assistantMessageId
+                  ? {
+                    ...msg,
+                    content:
+                      msg.content +
+                      `\n[Stream Interrupted: ${payload.message}]`,
+                  }
+                  : msg
+              )
+            );
+          }
+
+          if (payload.type === 'cancelled') {
+            safelyStopStream();
+
+            queryClient.invalidateQueries({
+              queryKey,
+            });
+          }
+        };
+      });
 
       return { previousMessages };
     },

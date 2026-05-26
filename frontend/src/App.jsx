@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
 import Sidebar from './components/Sidebar';
 import ChatWorkspace from './views/ChatWorkspace';
@@ -14,8 +14,21 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState(null);
 
-  const [provider, setProvider] = useState('openai');
-  const [model, setModel] = useState('gpt-4o');
+  const [provider, setProvider] = useState('google');
+  const [model, setModel] = useState('gemini-2.5-flash');
+
+  useEffect(() => {
+    const defaults = {
+      openai: "gpt-4o",
+
+      anthropic:
+        "claude-3-5-sonnet-20241022",
+
+      google: "gemini-2.5-flash",
+    };
+
+    setModel(defaults[provider]);
+  }, [provider]);
 
   // Instantiate TanStack React Query Hooks Block
   const { useGetSessions, useCreateSession, useUpdateSession, useDeleteSession } = usePipelineQueries();

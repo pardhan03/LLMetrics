@@ -60,13 +60,14 @@ export class AnthropicProvider extends BaseProvider {
 
         let ttftMs = null;
 
-        const stream = await this.client.messages.stream({
-            model,
-
-            max_tokens: 1024,
-
-            messages,
-        });
+        const stream = await this.client.messages.stream(
+            {
+                model,
+                max_tokens: 1024,
+                messages,
+            },
+            { signal }
+        );
 
         for await (const event of stream) {
             if (signal?.aborted) break;

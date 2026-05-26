@@ -4,8 +4,10 @@ import { PiiRedactor } from "./piiRedactor.js";
 import { BatchQueue } from "./batchQueue.js";
 import { HttpSender } from "./httpSender.js";
 
+import { env } from "../config/env.js";
+
 const sender = new HttpSender(
-    "http://localhost:4000/api/ingest/logs"
+    `http://localhost:${env.PORT}/api/ingest/logs`
 );
 
 const queue = new BatchQueue(sender);

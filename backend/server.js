@@ -17,13 +17,18 @@ import './src/workers/logWorker.js';
 const corsOptions = {
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  credentials: true,
+  // credentials: true,
 };
 
 const app = express();
 
 app.use(cors(corsOptions));
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: false,
+  })
+);
 app.use(rateLimiter);
 app.use(express.json({ limit: '1mb' }));
 

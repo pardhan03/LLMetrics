@@ -12,12 +12,14 @@ export async function up(knex) {
     table
       .uuid('session_id')
       .references('id')
-      .inTable('sessions');
+      .inTable('sessions')
+      .onDelete('CASCADE');
 
     table
       .uuid('message_id')
       .references('id')
-      .inTable('messages');
+      .inTable('messages')
+      .onDelete('CASCADE');
 
     table.text('provider').notNullable();
 
